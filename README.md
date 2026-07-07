@@ -1,5 +1,7 @@
 # my-planner
 
+[![CI](https://github.com/MyThingsLab/my-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/MyThingsLab/my-planner/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/MyThingsLab/my-planner/branch/main/graph/badge.svg)](https://codecov.io/gh/MyThingsLab/my-planner) ![Python](https://img.shields.io/badge/python-3.11%2B-blue) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 A [MyThingsLab](../mythings-core) `My[X]` tool. It produces a **priority-ordered,
 multi-item plan** across the whole fleet backlog — the recommended order for the
 next several units of work, and why — on a rolling basis.
