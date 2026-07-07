@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from mythings.engine import EngineResult
 from mythings.ledger import Ledger
 
@@ -59,6 +60,39 @@ def test_happy_path_engine_called_once_plan_lands_in_ledger_and_issue(tmp_path: 
     assert "## Recommended sequence" in new_body
     assert "**my-tester** _(next)_" in new_body
     assert "**Flags:** pause new tools" in new_body
+
+
+def test_unattended_ci_suppresses_public_issue_edit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # In CI (unattended) the tracking-issue-edit ASK collapses to DENY, so the
+    # planner still computes and records the plan but must NOT edit the public
+    # tracking issue — the harness's fail-closed stance on public content.
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    manifest = write_manifest(
+        tmp_path,
+        [
+            mentry("MyTester", "my-tester", "2026-06-01"),
+            mentry("MyReviewer", "my-reviewer", "2026-06-02"),
+        ],
+    )
+    repo_root = make_repo_root(tmp_path, {})
+    gh = FakeGh(body="# Fleet\n\n- [ ] close the secret-leak safety gap\n")
+    ledger = Ledger(tmp_path / "ledger.jsonl")
+
+    plan = Planner(
+        org="MyThingsLab",
+        manifest_path=manifest,
+        repo_root=repo_root,
+        ledger=ledger,
+        runner=gh,
+        engine=SpyEngine(_GOOD_REPLY),
+        tracking=Tracking(repo="MyThingsLab/mythings-core", issue=1),
+    ).plan()
+
+    assert [i["item"] for i in plan.items] == ["my-tester", "my-reviewer"]  # plan still computed
+    assert ledger.read(kind="plan")[-1].outcome == "success"  # still recorded
+    assert not any(c[:2] == ["issue", "edit"] for c in gh.calls)  # fail-closed: no public edit
 
 
 def test_open_items_parsed_from_tracking_issue(tmp_path: Path) -> None:

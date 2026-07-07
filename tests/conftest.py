@@ -3,8 +3,18 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from mythings.engine import EngineRequest, EngineResult
 from mythings.ledger import Ledger, LedgerEntry
+
+
+@pytest.fixture(autouse=True)
+def _attended_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Default the suite to the attended path (a human is present). CI sets
+    # GITHUB_ACTIONS=true, which otherwise collapses the tracking-issue-edit
+    # ASK to DENY (fail-closed) and suppresses the edit — a real behavior the
+    # suite must opt into deliberately, not inherit from the runner's env.
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
 
 
 class SpyEngine:
