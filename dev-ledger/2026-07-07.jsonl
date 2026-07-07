@@ -1,0 +1,2 @@
+{"data":{"session":"2026-07-07"},"detail":"copied my-template","kind":"scaffold","outcome":"success","tool":"claude-code","ts":"2026-07-07T18:58:19Z"}
+{"data":{"session":"2026-07-07"},"detail":"MyPlanner v0: context assembly + truncation, required Engine call, kind=plan ledger, tracking-issue section upsert","kind":"build","outcome":"success","tool":"claude-code","ts":"2026-07-07T18:58:19Z"}
