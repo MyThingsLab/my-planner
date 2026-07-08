@@ -41,7 +41,7 @@ def test_happy_path_engine_called_once_plan_lands_in_ledger_and_issue(tmp_path: 
         ledger=ledger,
         runner=gh,
         engine=engine,
-        tracking=Tracking(repo="MyThingsLab/mythings-core", issue=1),
+        tracking=Tracking(repo="MyThingsLab/my-things-core", issue=1),
     ).plan()
 
     assert len(engine.calls) == 1
@@ -87,7 +87,7 @@ def test_unattended_ci_suppresses_public_issue_edit(
         ledger=ledger,
         runner=gh,
         engine=SpyEngine(_GOOD_REPLY),
-        tracking=Tracking(repo="MyThingsLab/mythings-core", issue=1),
+        tracking=Tracking(repo="MyThingsLab/my-things-core", issue=1),
     ).plan()
 
     assert [i["item"] for i in plan.items] == ["my-tester", "my-reviewer"]  # plan still computed
@@ -108,7 +108,7 @@ def test_open_items_parsed_from_tracking_issue(tmp_path: Path) -> None:
         ledger=Ledger(tmp_path / "l.jsonl"),
         runner=gh,
         engine=engine,
-        tracking=Tracking(repo="MyThingsLab/mythings-core", issue=1),
+        tracking=Tracking(repo="MyThingsLab/my-things-core", issue=1),
     ).plan()
 
     bundle = engine.calls[0].prompt

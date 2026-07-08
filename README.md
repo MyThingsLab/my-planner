@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/MyThingsLab/my-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/MyThingsLab/my-planner/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/MyThingsLab/my-planner/branch/main/graph/badge.svg)](https://codecov.io/gh/MyThingsLab/my-planner) ![Python](https://img.shields.io/badge/python-3.11%2B-blue) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-A [MyThingsLab](../mythings-core) `My[X]` tool. It produces a **priority-ordered,
+A [MyThingsLab](../my-things-core) `My[X]` tool. It produces a **priority-ordered,
 multi-item plan** across the whole fleet backlog — the recommended order for the
 next several units of work, and why — on a rolling basis.
 
@@ -40,14 +40,14 @@ The plan is written to the ledger (`kind=plan`) and appended/updated as a
 
 ```bash
 myplanner plan --engine claude-cli [--horizon 4w] [--json] \
-  [--tracking-repo MyThingsLab/mythings-core --tracking-issue 1]
+  [--tracking-repo MyThingsLab/my-things-core --tracking-issue 1]
 ```
 
 ## Install (development)
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ../mythings-core -e ".[dev]"
+pip install -e ../my-things-core -e ".[dev]"
 pytest
 ```
 
