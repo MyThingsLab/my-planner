@@ -4,42 +4,28 @@ import json
 from pathlib import Path
 
 import pytest
-from mythings.engine import EngineRequest, EngineResult
+
+# Shared fakes come from mythings.testing (plain imports, no pytest_plugins:
+# a top-level import alongside plugin registration would skip assertion
+# rewriting). The aliased import re-exports the fixture — pytest registers it
+# under the attribute name — and the wrapper below makes it autouse.
 from mythings.ledger import Ledger, LedgerEntry
+from mythings.testing import FakeGh
+from mythings.testing import attended_env as _shared_attended_env  # noqa: F401
 
 
 @pytest.fixture(autouse=True)
-def _attended_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def _attended_env(request: pytest.FixtureRequest) -> None:
     # Default the suite to the attended path (a human is present). CI sets
     # GITHUB_ACTIONS=true, which otherwise collapses the tracking-issue-edit
     # ASK to DENY (fail-closed) and suppresses the edit — a real behavior the
     # suite must opt into deliberately, not inherit from the runner's env.
-    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    request.getfixturevalue("_shared_attended_env")
 
 
-class SpyEngine:
-    def __init__(self, result: EngineResult | None = None) -> None:
-        self.calls: list[EngineRequest] = []
-        self.result = result or EngineResult(text="", data={})
-
-    def run(self, request: EngineRequest) -> EngineResult:
-        self.calls.append(request)
-        return self.result
-
-
-class FakeGh:
-    # Mocks the `gh` boundary: tracking-issue view returns a body, edit records.
-    def __init__(self, body: str = "") -> None:
-        self.body = body
-        self.calls: list[list[str]] = []
-
-    def __call__(self, argv: list[str]) -> str:
-        self.calls.append(argv)
-        if argv[:2] == ["issue", "view"]:
-            return self.body
-        if argv[:2] == ["issue", "edit"]:
-            return ""
-        raise AssertionError(f"unexpected gh call: {argv}")
+def gh_tracking(body: str = "") -> FakeGh:
+    # The gh boundary: tracking-issue view returns a body, edit records.
+    return FakeGh({("issue", "view"): body, ("issue", "edit"): ""})
 
 
 def write_manifest(tmp_path: Path, entries: list[dict]) -> Path:

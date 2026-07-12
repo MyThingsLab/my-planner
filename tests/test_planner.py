@@ -3,19 +3,17 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from mythings.engine import EngineResult
 from mythings.ledger import Ledger
+from mythings.testing import ScriptedEngine
 
-from conftest import FakeGh, SpyEngine, build, make_repo_root, mentry, write_manifest
+from conftest import build, gh_tracking, make_repo_root, mentry, write_manifest
 from myplanner.planner import Planner, Tracking
 
-_GOOD_REPLY = EngineResult(
-    text=(
+_GOOD_REPLY = (
         '{"plan": ['
         '{"item": "my-tester", "rationale": "no deps, unblocks coverage", "horizon": "next"},'
         '{"item": "my-reviewer", "rationale": "needs core diff first", "horizon": "soon"}],'
         ' "flags": ["pause new tools, close a safety gap first"]}'
-    )
 )
 
 
@@ -30,8 +28,8 @@ def test_happy_path_engine_called_once_plan_lands_in_ledger_and_issue(tmp_path: 
     repo_root = make_repo_root(
         tmp_path, {"my-guard": [build("my-guard", "shipped rule engine", "2026-07-01T00:00:00Z")]}
     )
-    gh = FakeGh(body="# Fleet\n\n- [ ] close the secret-leak safety gap\n")
-    engine = SpyEngine(_GOOD_REPLY)
+    gh = gh_tracking(body="# Fleet\n\n- [ ] close the secret-leak safety gap\n")
+    engine = ScriptedEngine(_GOOD_REPLY)
     ledger = Ledger(tmp_path / "ledger.jsonl")
 
     plan = Planner(
@@ -77,7 +75,7 @@ def test_unattended_ci_suppresses_public_issue_edit(
         ],
     )
     repo_root = make_repo_root(tmp_path, {})
-    gh = FakeGh(body="# Fleet\n\n- [ ] close the secret-leak safety gap\n")
+    gh = gh_tracking(body="# Fleet\n\n- [ ] close the secret-leak safety gap\n")
     ledger = Ledger(tmp_path / "ledger.jsonl")
 
     plan = Planner(
@@ -86,7 +84,7 @@ def test_unattended_ci_suppresses_public_issue_edit(
         repo_root=repo_root,
         ledger=ledger,
         runner=gh,
-        engine=SpyEngine(_GOOD_REPLY),
+        engine=ScriptedEngine(_GOOD_REPLY),
         tracking=Tracking(repo="MyThingsLab/my-things-core", issue=1),
     ).plan()
 
@@ -98,8 +96,8 @@ def test_unattended_ci_suppresses_public_issue_edit(
 def test_open_items_parsed_from_tracking_issue(tmp_path: Path) -> None:
     manifest = write_manifest(tmp_path, [mentry("MyTester", "my-tester", "2026-06-01")])
     repo_root = make_repo_root(tmp_path, {})
-    gh = FakeGh(body="# Fleet\n- [ ] decide the projects-module shape\n- [x] already done\n")
-    engine = SpyEngine(_GOOD_REPLY)
+    gh = gh_tracking(body="# Fleet\n- [ ] decide the projects-module shape\n- [x] already done\n")
+    engine = ScriptedEngine(_GOOD_REPLY)
 
     Planner(
         org="MyThingsLab",
@@ -119,7 +117,7 @@ def test_open_items_parsed_from_tracking_issue(tmp_path: Path) -> None:
 def test_empty_backlog_still_calls_engine(tmp_path: Path) -> None:
     manifest = write_manifest(tmp_path, [])
     repo_root = make_repo_root(tmp_path, {})
-    engine = SpyEngine()  # NoopEngine-like empty reply
+    engine = ScriptedEngine()  # NoopEngine-like empty reply
     ledger = Ledger(tmp_path / "ledger.jsonl")
 
     plan = Planner(
@@ -127,7 +125,7 @@ def test_empty_backlog_still_calls_engine(tmp_path: Path) -> None:
         manifest_path=manifest,
         repo_root=repo_root,
         ledger=ledger,
-        runner=FakeGh(),
+        runner=gh_tracking(),
         engine=engine,
     ).plan()
 
@@ -142,14 +140,14 @@ def test_empty_backlog_still_calls_engine(tmp_path: Path) -> None:
 def test_unusable_reply_degrades_to_placeholder(tmp_path: Path) -> None:
     manifest = write_manifest(tmp_path, [mentry("MyTester", "my-tester", "2026-06-01")])
     repo_root = make_repo_root(tmp_path, {})
-    engine = SpyEngine(EngineResult(text="not json at all"))
+    engine = ScriptedEngine("not json at all")
 
     plan = Planner(
         org="MyThingsLab",
         manifest_path=manifest,
         repo_root=repo_root,
         ledger=Ledger(tmp_path / "l.jsonl"),
-        runner=FakeGh(),
+        runner=gh_tracking(),
         engine=engine,
     ).plan()
 
@@ -159,7 +157,7 @@ def test_unusable_reply_degrades_to_placeholder(tmp_path: Path) -> None:
 
 def test_no_tracking_means_no_issue_edit(tmp_path: Path) -> None:
     manifest = write_manifest(tmp_path, [mentry("MyTester", "my-tester", "2026-06-01")])
-    gh = FakeGh()
+    gh = gh_tracking()
 
     Planner(
         org="MyThingsLab",
@@ -167,7 +165,7 @@ def test_no_tracking_means_no_issue_edit(tmp_path: Path) -> None:
         repo_root=make_repo_root(tmp_path, {}),
         ledger=Ledger(tmp_path / "l.jsonl"),
         runner=gh,
-        engine=SpyEngine(_GOOD_REPLY),
+        engine=ScriptedEngine(_GOOD_REPLY),
     ).plan()
 
     assert gh.calls == []  # never touches an issue without --tracking-*
