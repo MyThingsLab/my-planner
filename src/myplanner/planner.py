@@ -6,11 +6,13 @@ import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from myguard.guard import Guard
+from myguard.rules import Rule
 from mythings.engine import Engine, EngineRequest, NoopEngine
 from mythings.github import Runner, _gh
 from mythings.isolation import in_github_actions
 from mythings.ledger import Ledger
-from mythings.policy import ALLOW, Action, Decision, Policy, PolicyResult
+from mythings.policy import Action, Decision, Policy
 
 from myplanner.context import PlanContext, truncate
 from myplanner.sources import read_manifest, read_open_items, read_velocity
@@ -28,13 +30,21 @@ _ENGINE_SYSTEM = (
 )
 
 
-class DefaultPolicy:
+def default_policy() -> Policy:
     # Editing the org-wide tracking issue is public-content mutation: ASK by
     # default, the same classification MyProjector gives that action kind.
-    def evaluate(self, action: Action) -> PolicyResult:
-        if action.kind == "tracking-issue-edit":
-            return PolicyResult(Decision.ASK, reason="edits public content", rule="public-content")
-        return ALLOW
+    # Wrapped in Guard so the ASK actually escalates through MYTHINGS_ASK_CMD
+    # instead of silently collapsing to DENY the moment `.under(unattended=)` runs.
+    return Guard(
+        rules=[
+            Rule(
+                "public-content",
+                Decision.ASK,
+                "edits public content",
+                kind="tracking-issue-edit",
+            )
+        ]
+    )
 
 
 @dataclass(frozen=True)
@@ -70,7 +80,7 @@ class Planner:
         self.ledger = ledger
         self.runner = runner
         self.engine: Engine = engine or NoopEngine()
-        self.policy: Policy = policy or DefaultPolicy()
+        self.policy: Policy = policy or default_policy()
         self.tracking = tracking
         self.velocity_limit = velocity_limit
 
