@@ -7,7 +7,7 @@ from mythings.ledger import Ledger
 from mythings.testing import ScriptedEngine
 
 from conftest import build, gh_tracking, make_repo_root, mentry, write_manifest
-from myplanner.planner import Planner, Tracking
+from myplanner.planner import Plan, Planner, Tracking, render_section
 
 _GOOD_REPLY = (
         '{"plan": ['
@@ -186,6 +186,34 @@ def test_unusable_reply_degrades_to_placeholder(tmp_path: Path) -> None:
 
     assert plan.engine_used is False
     assert plan.items[0]["item"] == "MyTester"  # placeholder cites a real ready tool
+
+
+def test_tracking_update_skips_edit_when_body_unchanged(tmp_path: Path) -> None:
+    # If the tracking issue already has this exact "## Recommended sequence"
+    # section, _update_tracking must short-circuit without calling `issue edit`.
+    manifest = write_manifest(tmp_path, [mentry("MyTester", "my-tester", "2026-06-01")])
+
+    plan_items = [
+        {"item": "my-tester", "rationale": "no deps, unblocks coverage", "horizon": "next"}
+    ]
+    existing_body = "# Fleet\n\n" + render_section(Plan(items=plan_items, flags=[])) + "\n"
+    gh = gh_tracking(body=existing_body)
+    engine = ScriptedEngine(
+        '{"plan": [{"item": "my-tester", "rationale": "no deps, unblocks coverage", '
+        '"horizon": "next"}], "flags": []}'
+    )
+
+    Planner(
+        org="MyThingsLab",
+        manifest_path=manifest,
+        repo_root=make_repo_root(tmp_path, {}),
+        ledger=Ledger(tmp_path / "l.jsonl"),
+        runner=gh,
+        engine=engine,
+        tracking=Tracking(repo="MyThingsLab/my-things-core", issue=1),
+    ).plan()
+
+    assert not any(c[:2] == ["issue", "edit"] for c in gh.calls)  # body already matched: no-op
 
 
 def test_no_tracking_means_no_issue_edit(tmp_path: Path) -> None:

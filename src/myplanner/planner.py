@@ -213,6 +213,10 @@ def upsert_section(body: str, section: str) -> str:
     # end), else append it — never a second competing section.
     block = section.rstrip() + "\n"
     if _SECTION_RE.search(body):
-        return _SECTION_RE.sub(block, body, count=1).rstrip() + "\n"
+        # Callable replacement: `block` is arbitrary Engine-produced text and must
+        # be inserted literally. A string replacement would have re.sub parse
+        # backslashes in it as escapes/backreferences (\1, \U, ...) and either
+        # crash or silently corrupt the issue body.
+        return _SECTION_RE.sub(lambda _m: block, body, count=1).rstrip() + "\n"
     sep = "" if body.endswith("\n\n") or not body else ("\n" if body.endswith("\n") else "\n\n")
     return body + sep + block
