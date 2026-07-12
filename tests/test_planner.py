@@ -93,6 +93,39 @@ def test_unattended_ci_suppresses_public_issue_edit(
     assert not any(c[:2] == ["issue", "edit"] for c in gh.calls)  # fail-closed: no public edit
 
 
+def test_unattended_ci_with_ask_channel_lets_a_human_approve_the_issue_edit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The proof case for fleet-dispatch#40: with MYTHINGS_ASK_CMD wired to a human
+    # who says yes (exit 0), the tracking-issue ASK must resolve to ALLOW even
+    # though the run is unattended — the ask channel, not just `.under()`, has to
+    # decide. `true` stands in for `mytelegrambot ask`.
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("MYTHINGS_ASK_CMD", "true")
+    manifest = write_manifest(
+        tmp_path,
+        [
+            mentry("MyTester", "my-tester", "2026-06-01"),
+            mentry("MyReviewer", "my-reviewer", "2026-06-02"),
+        ],
+    )
+    repo_root = make_repo_root(tmp_path, {})
+    gh = gh_tracking(body="# Fleet\n\n- [ ] close the secret-leak safety gap\n")
+    ledger = Ledger(tmp_path / "ledger.jsonl")
+
+    Planner(
+        org="MyThingsLab",
+        manifest_path=manifest,
+        repo_root=repo_root,
+        ledger=ledger,
+        runner=gh,
+        engine=ScriptedEngine(_GOOD_REPLY),
+        tracking=Tracking(repo="MyThingsLab/my-things-core", issue=1),
+    ).plan()
+
+    assert any(c[:2] == ["issue", "edit"] for c in gh.calls)  # human said yes: edit happened
+
+
 def test_open_items_parsed_from_tracking_issue(tmp_path: Path) -> None:
     manifest = write_manifest(tmp_path, [mentry("MyTester", "my-tester", "2026-06-01")])
     repo_root = make_repo_root(tmp_path, {})
