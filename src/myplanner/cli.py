@@ -19,13 +19,14 @@ def build_engine(name: str, *, model: str | None = None) -> Engine | None:
 
 
 def default_manifest_path() -> Path | None:
-    # MyOrchestrator is a hard dependency; reuse its shipped manifest.json rather
-    # than re-deriving the dependency graph. Resolve it from the installed package
-    # if present, else the caller must pass --manifest.
+    # Reuse the canonical fleet manifest shipped as mythings package data
+    # (my-things-core is already a hard dependency), rather than re-deriving
+    # the dependency graph. Resolve it from the installed package if present,
+    # else the caller must pass --manifest.
     try:
         from importlib.resources import files
 
-        return Path(str(files("myorchestrator").joinpath("manifest.json")))
+        return Path(str(files("mythings").joinpath("tools_manifest.json")))
     except (ImportError, ModuleNotFoundError):
         return None
 
@@ -71,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.manifest is None:
-        parser.error("could not locate myorchestrator's manifest.json; pass --manifest")
+        parser.error("could not locate mythings' tools_manifest.json; pass --manifest")
 
     tracking = (
         Tracking(repo=args.tracking_repo, issue=args.tracking_issue)
