@@ -20,13 +20,13 @@ def test_build_engine_noop_returns_none() -> None:
     assert cli.build_engine("noop") is None
 
 
-def test_default_manifest_path_resolves_from_installed_myorchestrator() -> None:
+def test_default_manifest_path_resolves_from_installed_mythings() -> None:
     path = cli.default_manifest_path()
     assert path is not None
-    assert path.name == "manifest.json"
+    assert path.name == "tools_manifest.json"
 
 
-def test_default_manifest_path_none_when_myorchestrator_not_importable(
+def test_default_manifest_path_none_when_mythings_not_importable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import builtins
@@ -34,7 +34,7 @@ def test_default_manifest_path_none_when_myorchestrator_not_importable(
     real_import = builtins.__import__
 
     def fake_import(name: str, *args: object, **kwargs: object) -> object:
-        if name == "importlib.resources" or name.startswith("myorchestrator"):
+        if name == "importlib.resources" or name.startswith("mythings"):
             raise ModuleNotFoundError(name)
         return real_import(name, *args, **kwargs)
 
@@ -80,7 +80,7 @@ def test_main_errors_when_manifest_cannot_be_located(
     with pytest.raises(SystemExit) as exc:
         cli.main(["plan"])
     assert exc.value.code == 2
-    assert "could not locate myorchestrator's manifest.json" in capsys.readouterr().err
+    assert "could not locate mythings' tools_manifest.json" in capsys.readouterr().err
 
 
 def test_main_runs_full_plan_and_prints_text(
@@ -138,18 +138,20 @@ def test_main_wires_tracking_repo_and_issue_into_planner(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     # CLI has no --runner injection point (by design: it's the real entrypoint),
-    # so assert on how main() constructs the Planner rather than shelling out to
-    # the real `gh`.
+    # so assert on how main() constructs the Planner rather than letting .plan()
+    # run for real — with tracking set, that would shell out to the real `gh`.
     manifest = write_manifest(tmp_path, [mentry("MyTester", "my-tester", "2026-06-01")])
     repo_root = make_repo_root(tmp_path, {})
     captured: dict[str, object] = {}
-    real_planner = cli.Planner
 
-    def spy_planner(*args: object, **kwargs: object) -> object:
-        captured.update(kwargs)
-        return real_planner(*args, **kwargs)
+    class SpyPlanner:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            captured.update(kwargs)
 
-    monkeypatch.setattr(cli, "Planner", spy_planner)
+        def plan(self) -> Plan:
+            return Plan(items=[], flags=[], engine_used=False)
+
+    monkeypatch.setattr(cli, "Planner", SpyPlanner)
 
     rc = cli.main(
         [
